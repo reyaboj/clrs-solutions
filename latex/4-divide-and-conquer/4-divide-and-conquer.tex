@@ -1,0 +1,179 @@
+\documentclass[a4paper,12pt,fleqn]{article}
+
+% Page layout
+\usepackage[width=15.5cm]{geometry}
+
+% Use paragraph spacing, not indents
+\usepackage{parskip}
+
+% Language shenanigans
+\usepackage[english]{babel}
+
+% Sane math typesetting
+% NOTE: keep this above the fontspec/unicode-math packages
+% loads amsmath as a dependency
+\usepackage{mathtools,amssymb,amsthm}
+
+% Algorithm typesetting
+\usepackage[%
+    ruled,
+    linesnumbered
+]{algorithm2e}
+
+% NOTE: Keep these uses below any font/math related packages
+% Need to install the fonts, or comment them out if you don't care
+\usepackage{fontspec}
+\setmainfont{STIX Two Text}
+\setmonofont[Scale=0.88]{Iosevka}
+% NOTE: Keep unicode-math below fontspec
+\usepackage{unicode-math}
+\setmathfont{STIX Two Math}
+
+% Easy to use colors
+\usepackage[dvipsnames]{xcolor}
+
+% Better referencing with some sane defaults
+% Keep this below all packages
+\usepackage[%
+    % make the text + page nums link to their resp. content in TOC,LOT,LOF
+    linktoc=all,
+    % color the text of links and anchors
+    colorlinks=true,
+    % set colors for internal, citation, URL links
+    linkcolor=violet!85!black,
+    citecolor=YellowOrange!85!black,
+    urlcolor=Aquamarine!85!black
+]{hyperref}
+
+
+% ============================
+% Custom commands/environments
+% ============================
+
+% Solution texts
+% Invocation: \exsoln{solution_number}{question_text}{answer_text}
+\newcommand{\exsoln}[3]{%
+» \textbf{\emph{Exercise}} \emph{#1}% Solution number
+
+\emph{#2}% Question text
+
+\textbf{\emph{Solution:}}\\
+#3% Answer text
+
+\bigskip % ideally wouldn't insert this unless another exercise solution follows
+}
+
+% Array slice
+% Invocation: \arrslice{varname}{startindex}{endindex}
+\newcommand{\arrslice}[3]{%
+\ensuremath{\mathtt{#1[#2\ldots #3]}}
+}
+
+% Array index
+% Invocation: \arrat{varname}{index}
+\newcommand{\arrat}[2]{%
+\ensuremath{\mathtt{#1[#2]}}
+}
+
+
+\begin{document}
+% === TITLE === %
+\title{CLRS Chapter 4 \\ Divide and Conquer}
+\author{Md Istiaque Al Jobayer}
+\date{10th September 2021}
+\maketitle
+
+% === CONTENT === %
+\section{Maximum Subarray CLRS-4.1}
+\exsoln{4.1-1}
+{What does \texttt{FIND-MAXIMUM-SUBARRAY} return when all elements of \textit{A} are negative?}
+{It returns the largest number of \textit{A}.}
+
+\exsoln{4.1-2}
+{Write pseudocode for the brute-force method of solving the maximum subarray problem. Your procedure should run in $\Theta(n^2)$ time.}{%
+    Refer to Algorithm \ref{algo:max-subarray-naive}. The idea is quite straightforward: try all possible subarrays \arrslice{A}{i}{j} and iteratively update the maximum found till all subarrays are processed and only a global maximum remains. The running time is $\Theta(n^2)$ since we try all $\binom{n}{2}$ pairs.
+    \begin{algorithm}
+        \caption{\texttt{MAX-SUBARRAY-NAIVE}}
+        \label{algo:max-subarray-naive}
+
+        % data variables
+        \SetKwData{maxSum}{maxSum}
+        \SetKwData{sumSoFar}{sumSoFar}
+        \SetKwArray{A}{A}
+
+        % functions
+        \SetKwFunction{max}{max}
+
+        % global settings
+        \DontPrintSemicolon
+
+        % input/output
+        \KwIn{an array \A{$1 \ldots N$} of totally ordered objects with $<$ defined}
+        \KwOut{\maxSum, the largest subarray sum in the array}
+        \BlankLine
+
+        % the algorithm
+        $\maxSum = -\infty$\;
+
+        \For{$i = 1$ \KwTo $N$}{%
+            \sumSoFar$= 0$\;
+            \For{$j = i$ \KwTo $N$}{%
+                $\sumSoFar=\sumSoFar+\A{\,j}$\;
+                $\maxSum = \max{\sumSoFar, \maxSum}$\;
+            }
+        }
+
+        \Return{\maxSum}
+    \end{algorithm}
+}
+
+\exsoln{4.1-3}
+{Implement both the brute-force and recursive algorithms for the maximum subarray problem on your own computer. What problem size $n_0$ gives the crossover point at which the recursive algorithm beats the brute-force algorithm? Then, change the base case of the recursive algorithm to use the brute-force algorithm whenever the problem size is less than $n_0$. Does that change the crossover point?}
+{The crossover point found is $n_0 = 40$. Changing it forces the crossover point to $n_0 = 50$. Refer to the file \texttt{maxsubarray.py} for details.}
+
+\exsoln{4.1-4}
+{Suppose we change the definition of the maximum subarray problem to allow the result to be an empty subarray, where the sum of the values of such a subarray is $0$. How would you change any of the algorithms that do not allow empty subarrays to permit them?}
+{Interpret $\textrm{low} > \textrm{high}$ as empty subarray, returning 0 for that case.}
+
+\exsoln{4.1-5}
+{Use the following ideas to develop a non-recursive, linear time algorithm for the maximum subarray problem. Start at the left end of the array, progess toward the right, keeping track of the maximum subarray seen so far. Knowing a maximum subarray of \arrslice{A}{1}{j}, extend the answer to find the maximum subarray ending at index $j+1$ by using the following observation: a maximum subarray of \arrslice{A}{1}{j+1} is either a maximum subarray of \arrslice{A}{1}{j} or a maximum subarray \arrslice{A}{i}{j+1}, for some $1 \leq i \leq j+1$. Determine a maximum subarray of the form \arrslice{A}{i}{j+1} in constant time based on knowing a maximum subarray ending at index $j$.}{%
+    Refer to Algorithm \ref{algo:max-subarray-linear}. The key idea here is that given the following descriptions:
+    \[ M(k) = \text{a maximum subarray sum of }\arrslice{A}{1}{k} \]
+    \[ E(k) = \text{maximum subarray sum ending at and including index }\mathtt{k} \]
+    we can characterize a solution to $M(k)$ by observing the following relationships:
+    \[ M(k) = \max(M(k-1), E(k)) \]
+    \[ E(k) = \max(\arrat{A}{k}, E(k-1)+\arrat{A}{k}) \]
+
+    To elaborate a bit further, the maximum subarray of \arrslice{A}{1}{k} either includes \arrat{A}{k}, or does not. If it does not, that is $M(k-1)$. If it does, then it is the maximum ending at that index: $E(k)$. Furthermore, $E(k)$ by itself is also either growing the previous subarray obtained from $E(k-1)$, or we begin a new subarray containing just \arrat{A}{k}.
+    \begin{algorithm}
+        \caption{\texttt{MAX-SUBARRAY-LINEAR}}
+        \label{algo:max-subarray-linear}
+
+        % data
+        \SetKwData{globalMax}{globalMax}
+        \SetKwData{maxEndingHere}{maxEndingHere}
+        \SetKwArray{A}{A}
+
+        % functions
+        \SetKwFunction{max}{max}
+
+        % global settings
+        \DontPrintSemicolon
+
+        % input/output
+        \KwIn{array \A{$1\ldots N$} of totally ordered objects with $<$ defined}
+        \KwOut{\globalMax, a maximum subarray sum}
+
+        % the algorithm
+        \BlankLine
+        $\globalMax = -\infty$\;
+        $\maxEndingHere = 0$\;
+        \For{$k = 1$ \KwTo $N$}{%
+            $\maxEndingHere = \max{\A{k}, \maxEndingHere + \A{k}}$\;
+            $\globalMax = \max{\globalMax, \maxEndingHere}$\;
+        }
+        \Return{\globalMax}
+    \end{algorithm}
+}
+
+\end{document}
